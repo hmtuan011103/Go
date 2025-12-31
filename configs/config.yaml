@@ -1,0 +1,19 @@
+server:
+  address: ":8080"
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: ""
+  dbname: app
+  sslmode: disable
+
+app:
+  name: "GoStructure App"
+  version: "1.0.0"
+  environment: development
+  debug: true
