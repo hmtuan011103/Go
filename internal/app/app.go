@@ -62,8 +62,4 @@ func (a *App) setupRoutes() {
 	a.router.HandleFunc("POST /api/v1/items", a.handler.CreateItem)
 	a.router.HandleFunc("PUT /api/v1/items/{id}", a.handler.UpdateItem)
 	a.router.HandleFunc("DELETE /api/v1/items/{id}", a.handler.DeleteItem)
-
-	// Concurrency Demo routes
-	a.router.HandleFunc("GET /api/v1/demo/concurrency", a.handler.ConcurrencyExplain)
-	a.router.HandleFunc("POST /api/v1/demo/worker-pool", a.handler.WorkerPoolDemo)
 }

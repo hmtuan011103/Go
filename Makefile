@@ -5,11 +5,11 @@ all: build
 
 # Build the application
 build:
-	go build -o build/bin/app.exe ./cmd/app
+	go build -o build/bin/server.exe ./cmd/server
 
 # Run the application
 run:
-	go run ./cmd/app
+	go run ./cmd/server/main.go
 
 # Run tests
 test:
