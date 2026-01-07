@@ -10,11 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gostructure/app/internal/adapter/handler/http"
-	"github.com/gostructure/app/internal/adapter/storage/memory"
+	"github.com/gostructure/app/internal/adapter/auth/bcrypt"
+	"github.com/gostructure/app/internal/adapter/auth/jwt"
+	"github.com/gostructure/app/internal/adapter/handler/http/user"
+	"github.com/gostructure/app/internal/adapter/storage/mysql"
 	"github.com/gostructure/app/internal/config"
+	"github.com/gostructure/app/internal/core/service"
 	"github.com/gostructure/app/internal/middleware"
-	"github.com/gostructure/app/internal/service"
 )
 
 func main() {
@@ -27,19 +29,40 @@ func main() {
 
 	fmt.Printf("Starting %s on %s (%s)\n", cfg.App.Name, cfg.Server.Address, cfg.App.Environment)
 
-	// 2. Setup Adapters (Repository)
-	userRepo := memory.NewUserRepository()
+	// 2. Setup Adapters (Repository & Auth)
+	db, err := mysql.NewMySQLConnection(&cfg.Database)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Run Migrations
+	if err := mysql.RunMigrations(db, &cfg.Database); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	userRepo := mysql.NewUserRepository(db)
+	tokenRepo := mysql.NewTokenRepository(db)
+	passwordHasher := bcrypt.NewBcryptHasher()
+	jwtProvider := jwt.NewJWTProvider(&cfg.JWT)
 
 	// 3. Setup Core (Service)
+	// UserService
 	userService := service.NewUserService(userRepo)
+	// AuthService
+	authService := service.NewAuthService(userRepo, tokenRepo, passwordHasher, jwtProvider)
 
 	// 4. Setup Adapters (Handler)
-	userHandler := http.NewUserHandler(userService)
+	userHandler := user.NewUserHandler(userService)
+	authHandler := user.NewAuthHandler(authService)
+
+	// Auth Middleware
+	authMiddleware := middleware.NewAuthMiddleware(jwtProvider, userRepo)
 
 	// 5. Setup Router (Standard Mux)
-	router := stdMux(userHandler)
+	router := stdMux(userHandler, authHandler, authMiddleware)
 
-	// Middleware
+	// Global Middleware
 	handler := middleware.Logging(router)
 
 	// 6. Setup HTTP Server
@@ -78,8 +101,11 @@ func main() {
 }
 
 // stdMux setups the standard library router
-// In a real app, this might be in a separate router.go file
-func stdMux(userHandler *http.UserHandler) *nethttp.ServeMux {
+func stdMux(
+	userHandler *user.UserHandler,
+	authHandler *user.AuthHandler,
+	authMiddleware *middleware.AuthMiddleware,
+) *nethttp.ServeMux {
 	mux := nethttp.NewServeMux()
 
 	// Health Check
@@ -88,16 +114,28 @@ func stdMux(userHandler *http.UserHandler) *nethttp.ServeMux {
 		w.Write([]byte("OK"))
 	})
 
-	// User Routes (Go 1.22+ patterns)
-	mux.HandleFunc("GET /api/v1/users", userHandler.ListUsers)
-	mux.HandleFunc("GET /api/v1/users/{id}", userHandler.GetUser)
-	mux.HandleFunc("POST /api/v1/users", userHandler.CreateUser)
-	mux.HandleFunc("PUT /api/v1/users/{id}", userHandler.UpdateUser)
-	mux.HandleFunc("DELETE /api/v1/users/{id}", userHandler.DeleteUser)
+	// Auth Routes
+	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
+	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
+
+	// User Routes (Protected)
+	// We wrap the sensitive handlers with AuthMiddleware
+	// For Go 1.22 mux, we can wrap individual handlers
+	// Note: HandleFunc takes a function, Handle takes a Handler interface.
+	// Middleware returns Handler.
+
+	// Helper to wrap
+	protect := authMiddleware.Handle
+
+	mux.Handle("GET /api/v1/users", protect(nethttp.HandlerFunc(userHandler.ListUsers)))
+	mux.Handle("GET /api/v1/users/{id}", protect(nethttp.HandlerFunc(userHandler.GetUser)))
+	// POST users might be admin only or open? Usually creating a user is "Register" now.
+	// But let's keep it protected as an "Admin create user" feature for now, or just protected.
+	mux.Handle("POST /api/v1/users", protect(nethttp.HandlerFunc(userHandler.CreateUser)))
+	mux.Handle("PUT /api/v1/users/{id}", protect(nethttp.HandlerFunc(userHandler.UpdateUser)))
+	mux.Handle("DELETE /api/v1/users/{id}", protect(nethttp.HandlerFunc(userHandler.DeleteUser)))
 
 	return mux
 }
-
-// Alias for net/http to avoid conflict with package name "http"
-// inside main since we imported internal/adapter/handler/http
-// We can rename import instead.

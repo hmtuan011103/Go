@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - schema: "db/migrations"
+    queries: "db/queries"
+    engine: "mysql"
+    gen:
+      go:
+        package: "dbgen"
+        out: "internal/adapter/storage/mysql/dbgen"
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: true
+        emit_exact_table_names: false

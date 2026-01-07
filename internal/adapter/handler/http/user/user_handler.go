@@ -1,4 +1,4 @@
-package http
+package user
 
 import (
 	"encoding/json"
@@ -19,23 +19,15 @@ func NewUserHandler(svc port.UserService) *UserHandler {
 	}
 }
 
-// Request Models
-type CreateUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-type UpdateUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-// Handlers
-
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var req CreateUserRequest
+	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -45,7 +37,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusCreated, user)
+	response.Success(w, http.StatusCreated, "User created successfully", user)
 }
 
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
@@ -62,20 +54,45 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, user)
+	response.Success(w, http.StatusOK, "User retrieved successfully", user)
 }
 
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.svc.ListUsers(r.Context())
+	// Extract pagination parameters
+	pageStr := r.URL.Query().Get("page")
+	pageSizeStr := r.URL.Query().Get("page_size")
+
+	page, _ := strconv.Atoi(pageStr)
+	pageSize, _ := strconv.Atoi(pageSizeStr)
+
+	// Set defaults if not provided or invalid
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	users, total, err := h.svc.ListUsers(r.Context(), page, pageSize)
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]interface{}{
-		"users": users,
-		"count": len(users),
-	})
+	// Calculate pagination metadata
+	totalPages := int(total / int64(pageSize))
+	if total%int64(pageSize) != 0 {
+		totalPages++
+	}
+
+	meta := response.PaginationMeta{
+		CurrentPage: page,
+		TotalPages:  totalPages,
+		PageSize:    pageSize,
+		TotalItems:  total,
+	}
+
+	response.Pagination(w, http.StatusOK, "Users retrieved successfully", users, meta)
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -86,9 +103,14 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req UpdateUserRequest
+	var req UpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -98,7 +120,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, user)
+	response.Success(w, http.StatusOK, "User updated successfully", user)
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -114,5 +136,5 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	response.Success(w, http.StatusOK, "User deleted successfully", nil)
 }

@@ -22,8 +22,30 @@ func (s *UserService) GetUser(ctx context.Context, id int64) (*domain.User, erro
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *UserService) ListUsers(ctx context.Context) ([]*domain.User, error) {
-	return s.repo.List(ctx)
+func (s *UserService) ListUsers(ctx context.Context, page, pageSize int) ([]*domain.User, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	skip := (page - 1) * pageSize
+	limit := pageSize
+
+	// Get total count for metadata
+	total, err := s.repo.Count(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated list
+	users, err := s.repo.List(ctx, skip, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
 }
 
 func (s *UserService) CreateUser(ctx context.Context, name, email string) (*domain.User, error) {
