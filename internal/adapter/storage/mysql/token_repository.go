@@ -35,6 +35,14 @@ func (r *RefreshTokenRepository) CreateRefreshToken(ctx context.Context, rt *dom
 
 	id, _ := res.LastInsertId()
 	rt.ID = id
+
+	// Re-fetch to get CreatedAt from DB
+	dbToken, err := r.queries.GetRefreshToken(ctx, rt.Token)
+	if err == nil {
+		updated := toDomainRefreshToken(dbToken)
+		rt.CreatedAt = updated.CreatedAt
+	}
+
 	return nil
 }
 

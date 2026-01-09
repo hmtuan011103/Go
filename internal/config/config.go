@@ -21,6 +21,7 @@ type AppConfig struct {
 	Version     string `mapstructure:"version"`
 	Environment string `mapstructure:"environment"`
 	Debug       bool   `mapstructure:"debug"`
+	Timezone    string `mapstructure:"timezone"`
 }
 
 type ServerConfig struct {
@@ -58,6 +59,7 @@ func Load() (*Config, error) {
 	v.SetDefault("server.read_timeout", 15*time.Second)
 	v.SetDefault("server.write_timeout", 15*time.Second)
 	v.SetDefault("server.idle_timeout", 60*time.Second)
+	v.SetDefault("app.timezone", "Asia/Ho_Chi_Minh")
 
 	// Database Defaults
 	v.SetDefault("database.host", "localhost")
@@ -86,6 +88,7 @@ func Load() (*Config, error) {
 	v.BindEnv("database.sslmode", "DB_SSLMODE")
 	v.BindEnv("app.name", "APP_NAME")
 	v.BindEnv("app.environment", "APP_ENV")
+	v.BindEnv("app.timezone", "APP_TIMEZONE")
 	// JWT Binding
 	v.BindEnv("jwt.secret", "JWT_SECRET")
 	v.BindEnv("jwt.expiration", "JWT_EXPIRATION")

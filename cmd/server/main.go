@@ -27,10 +27,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 2. Set Timezone dynamic from config
+	loc, err := time.LoadLocation(cfg.App.Timezone)
+	if err == nil {
+		time.Local = loc
+	} else {
+		log.Printf("Warning: Failed to load timezone %s, using local: %v", cfg.App.Timezone, err)
+	}
+
 	fmt.Printf("Starting %s on %s (%s)\n", cfg.App.Name, cfg.Server.Address, cfg.App.Environment)
 
-	// 2. Setup Adapters (Repository & Auth)
-	db, err := mysql.NewMySQLConnection(&cfg.Database)
+	// 3. Setup Adapters (Repository & Auth)
+	db, err := mysql.NewMySQLConnection(&cfg.Database, cfg.App.Timezone)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/gostructure/app/internal/adapter/storage/mysql/dbgen"
 	"github.com/gostructure/app/internal/core/domain"
 	"github.com/gostructure/app/internal/core/port"
+	"github.com/gostructure/app/pkg/util/time_util"
 )
 
 type UserRepository struct {
@@ -26,6 +27,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int64) (*domain.User, e
 	u, err := r.queries.GetUserByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
+
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, err
@@ -82,6 +84,15 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 
 	id, _ := res.LastInsertId()
 	user.ID = id
+
+	// Fetch the created user to get the database-generated timestamps (CreatedAt, UpdatedAt)
+	dbUser, err := r.queries.GetUserByID(ctx, id)
+	if err == nil {
+		updatedDomain := toDomainUser(dbUser)
+		user.CreatedAt = updatedDomain.CreatedAt
+		user.UpdatedAt = updatedDomain.UpdatedAt
+	}
+
 	return nil
 }
 
@@ -126,7 +137,7 @@ func toDomainUser(u dbgen.User) *domain.User {
 		Role:         u.Role,
 		Status:       u.Status,
 		TokenVersion: int(u.TokenVersion),
-		CreatedAt:    u.CreatedAt.Time,
-		UpdatedAt:    u.UpdatedAt.Time,
+		CreatedAt:    time_util.JSONTime(u.CreatedAt.Time),
+		UpdatedAt:    time_util.JSONTime(u.UpdatedAt.Time),
 	}
 }
