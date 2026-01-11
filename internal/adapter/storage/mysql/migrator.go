@@ -2,9 +2,7 @@ package mysql
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
-	"log"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
@@ -12,11 +10,14 @@ import (
 	"github.com/gostructure/app/internal/config"
 )
 
-// RunMigrations executes the database migrations
-func RunMigrations(db *sql.DB, cfg *config.DatabaseConfig) error {
+type Migrator struct {
+	m *migrate.Migrate
+}
+
+func NewMigrator(db *sql.DB, cfg *config.DatabaseConfig) (*Migrator, error) {
 	driver, err := mysql.WithInstance(db, &mysql.Config{})
 	if err != nil {
-		return fmt.Errorf("could not create mysql driver: %w", err)
+		return nil, fmt.Errorf("create mysql driver failed: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
@@ -25,25 +26,34 @@ func RunMigrations(db *sql.DB, cfg *config.DatabaseConfig) error {
 		driver,
 	)
 	if err != nil {
-		return fmt.Errorf("could not create migration instance: %w", err)
+		return nil, fmt.Errorf("create migrate instance failed: %w", err)
 	}
 
-	// Get current version
-	version, dirty, err := m.Version()
-	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
-		return fmt.Errorf("could not get migration version: %w", err)
-	}
-	log.Printf("Current migration version: %d, dirty: %v", version, dirty)
+	return &Migrator{m: m}, nil
+}
 
-	// Verify if there are migrations to run
-	if err := m.Up(); err != nil {
-		if errors.Is(err, migrate.ErrNoChange) {
-			log.Println("Database is up to date regarding migrations")
-			return nil
-		}
-		return fmt.Errorf("could not run up migrations: %w", err)
+func (mg *Migrator) Up() error {
+	if err := mg.m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
 	}
-
-	log.Println("Successfully ran database migrations")
 	return nil
+}
+
+func (mg *Migrator) Down() error {
+	if err := mg.m.Down(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+	return nil
+}
+
+func (mg *Migrator) Version() (uint, bool, error) {
+	return mg.m.Version()
+}
+
+func (mg *Migrator) Close() error {
+	srcErr, dbErr := mg.m.Close()
+	if srcErr != nil {
+		return srcErr
+	}
+	return dbErr
 }
