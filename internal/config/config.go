@@ -18,7 +18,7 @@ func Load() (*Config, error) {
 	v.SetDefault("app.environment", "development")
 	v.SetDefault("app.timezone", "Asia/Ho_Chi_Minh")
 
-	v.SetDefault("server.address", ":8080")
+	v.SetDefault("server.address", ":8081")
 	v.SetDefault("server.read_timeout", 15*time.Second)
 	v.SetDefault("server.write_timeout", 15*time.Second)
 	v.SetDefault("server.idle_timeout", 60*time.Second)

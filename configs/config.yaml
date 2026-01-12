@@ -1,19 +1,25 @@
-server:
-  address: ":8080"
-  read_timeout: 15s
-  write_timeout: 15s
-  idle_timeout: 60s
+# ============================================================
+# DEFAULT CONFIGURATION
+# Priority: .env > config.yaml > code defaults
+# Values here can be overridden by environment variables in .env
+# ============================================================
 
-database:
-  host: localhost
-  port: 5432
-  user: postgres
-  password: ""
-  dbname: app
-  sslmode: disable
-
+# Application
 app:
   name: "GoStructure App"
   version: "1.0.0"
-  environment: development
+  environment: development    # Override: APP_ENV
+  timezone: Asia/Ho_Chi_Minh  # Override: APP_TIMEZONE
   debug: true
+
+# Server
+server:
+  address: ":8080"           # Override: SERVER_ADDRESS
+  read_timeout: 15s          # Override: SERVER_READ_TIMEOUT
+  write_timeout: 15s         # Override: SERVER_WRITE_TIMEOUT
+  idle_timeout: 60s          # Override: SERVER_IDLE_TIMEOUT
+
+# JWT
+jwt:
+  secret: "change-me-in-env" # Override: JWT_SECRET
+  expiration: 24h            # Override: JWT_EXPIRATION

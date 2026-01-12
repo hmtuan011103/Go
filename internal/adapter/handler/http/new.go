@@ -1,22 +1,38 @@
 package http
 
 import (
-	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/gostructure/app/internal/adapter/auth/bcrypt"
 	"github.com/gostructure/app/internal/adapter/auth/jwt"
 	"github.com/gostructure/app/internal/adapter/handler/http/user"
+	"github.com/gostructure/app/internal/adapter/storage"
 	"github.com/gostructure/app/internal/adapter/storage/mysql"
+	"github.com/gostructure/app/internal/adapter/storage/postgres"
 	"github.com/gostructure/app/internal/config"
+	"github.com/gostructure/app/internal/core/port"
 	"github.com/gostructure/app/internal/core/service"
 	"github.com/gostructure/app/internal/middleware"
 )
 
-func NewServer(cfg *config.Config, db *sql.DB) (*Server, error) {
-	// repositories
-	userRepo := mysql.NewUserRepository(db)
-	tokenRepo := mysql.NewTokenRepository(db)
+func NewServer(cfg *config.Config, db storage.Database) (*Server, error) {
+	var userRepo port.UserRepository
+	var tokenRepo port.TokenRepository
+
+	sqlDB := db.GetDB()
+
+	// 1. Initialize repositories based on driver
+	switch db.DriverName() {
+	case "mysql":
+		userRepo = mysql.NewUserRepository(sqlDB)
+		tokenRepo = mysql.NewTokenRepository(sqlDB)
+	case "postgres":
+		userRepo = postgres.NewUserRepository(sqlDB)
+		tokenRepo = postgres.NewTokenRepository(sqlDB)
+	default:
+		return nil, fmt.Errorf("unsupported database driver in server: %s", db.DriverName())
+	}
 
 	// auth
 	passwordHasher := bcrypt.NewBcryptHasher()

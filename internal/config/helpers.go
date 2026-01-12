@@ -39,10 +39,18 @@ func readConfig(v *viper.Viper) error {
 }
 
 func bindCommonEnv(v *viper.Viper) {
+	// App
 	v.BindEnv("app.name", "APP_NAME")
 	v.BindEnv("app.environment", "APP_ENV")
 	v.BindEnv("app.timezone", "APP_TIMEZONE")
 
+	// Server
+	v.BindEnv("server.address", "SERVER_ADDRESS")
+	v.BindEnv("server.read_timeout", "SERVER_READ_TIMEOUT")
+	v.BindEnv("server.write_timeout", "SERVER_WRITE_TIMEOUT")
+	v.BindEnv("server.idle_timeout", "SERVER_IDLE_TIMEOUT")
+
+	// JWT
 	v.BindEnv("jwt.secret", "JWT_SECRET")
 	v.BindEnv("jwt.expiration", "JWT_EXPIRATION")
 }

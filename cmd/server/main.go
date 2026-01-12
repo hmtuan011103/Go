@@ -10,7 +10,7 @@ import (
 	"time"
 
 	httpadapter "github.com/gostructure/app/internal/adapter/handler/http"
-	"github.com/gostructure/app/internal/adapter/storage/mysql"
+	"github.com/gostructure/app/internal/adapter/storage"
 	"github.com/gostructure/app/internal/config"
 )
 
@@ -37,18 +37,22 @@ func main() {
 	}
 
 	// =====================================================
-	// 3. Connect Database
+	// 3. Connect Database (Dynamic based on DB_DRIVER)
 	// =====================================================
-	db, err := mysql.NewMySQLConnection(dbCfg, cfg.App.Timezone)
+	database, err := storage.NewDatabase(dbCfg, cfg.App.Timezone)
 	if err != nil {
 		log.Fatalf("connect database failed: %v", err)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	// =====================================================
+	// Run migrations
+	if err := database.RunMigrations(); err != nil {
+		log.Fatalf("migration failed: %v", err)
+	}
+
 	// 4. Init HTTP Server (ALL wiring inside)
 	// =====================================================
-	server, err := httpadapter.NewServer(cfg, db)
+	server, err := httpadapter.NewServer(cfg, database)
 	if err != nil {
 		log.Fatalf("init http server failed: %v", err)
 	}

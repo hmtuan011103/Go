@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/gostructure/app/internal/adapter/storage/mysql"
+	"github.com/gostructure/app/internal/adapter/storage"
 	"github.com/gostructure/app/internal/config"
 )
 
@@ -15,18 +15,27 @@ func main() {
 
 	command := os.Args[1]
 
-	cfg, err := config.LoadDatabaseOnly()
+	// Load app config for timezone
+	appCfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Load app config failed: %v", err)
+	}
+
+	// Load database config
+	dbCfg, err := config.LoadDatabaseOnly()
 	if err != nil {
 		log.Fatalf("Load database config failed: %v", err)
 	}
 
-	db, err := mysql.NewMySQLConnection(cfg, "")
+	// Connect using database factory (dynamic based on DB_DRIVER)
+	database, err := storage.NewDatabase(dbCfg, appCfg.App.Timezone)
 	if err != nil {
 		log.Fatalf("Connect database failed: %v", err)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	migrator, err := mysql.NewMigrator(db, cfg)
+	// Create migrator (supports multiple drivers)
+	migrator, err := storage.NewMigrator(database.GetDB(), dbCfg)
 	if err != nil {
 		log.Fatalf("Create migrator failed: %v", err)
 	}

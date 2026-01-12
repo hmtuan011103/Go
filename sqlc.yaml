@@ -1,7 +1,7 @@
 version: "2"
 sql:
-  - schema: "db/migrations"
-    queries: "db/queries"
+  - schema: "db/mysql/migrations"
+    queries: "db/mysql/queries"
     engine: "mysql"
     gen:
       go:
@@ -9,7 +9,17 @@ sql:
         out: "internal/adapter/storage/mysql/dbgen"
         emit_json_tags: true
         emit_interface: true
-        emit_prepared_queries: false
-        emit_exact_table_names: false
-        emit_empty_slices: true
         emit_pointers_for_null_types: true
+        emit_empty_slices: true
+
+  - schema: "db/postgres/migrations"
+    queries: "db/postgres/queries"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "dbgen"
+        out: "internal/adapter/storage/postgres/dbgen"
+        emit_json_tags: true
+        emit_interface: true
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
